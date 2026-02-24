@@ -37,11 +37,13 @@ ${JSON.stringify(slimInternships)}
 TASK: Find the TOP 6 most suitable internships from the list based exclusively on the candidate's skills, experience, and interests.
 
 OUTPUT FORMAT:
-Return ONLY a valid JSON array containing exactly 6 objects. Do not include markdown like \`\`\`json.
-Each object must have exactly these 3 keys:
-- "id": The integer ID of the internship.
-- "matchScore": An integer from 85 to 99 showing percentage match.
-- "reason": A single, punchy phrase (e.g. "Direct experience in Tech/IP disputes.") explaining why this internship fits the CV. Do not exceed 10 words.`;
+Return ONLY a valid JSON object. Do not include markdown like \`\`\`json.
+The JSON object must have exactly these 2 keys:
+1. "matches": an array containing exactly 6 objects. Each object must have:
+   - "id": The integer ID of the internship.
+   - "matchScore": An integer from 85 to 99 showing percentage match.
+   - "reason": A single, punchy phrase (e.g. "Direct experience in Tech/IP disputes.") explaining why this internship fits the CV. Do not exceed 10 words.
+2. "feedback": an array of 3 strings. Each string must be a practical, actionable suggestion on how to improve this CV for legal internships (max 15 words each).`;
 
     try {
         const response = await fetch('https://api.deepseek.com/v1/chat/completions', {

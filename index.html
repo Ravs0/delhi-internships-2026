@@ -7,6 +7,7 @@
     <title>Delhi Legal Internships - Smart Dashboard</title>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap"
         rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
     <style>
         :root {
             --bg-base: #f8f9fa;
@@ -721,8 +722,20 @@
                         style="color: var(--accent-main); font-weight: 500;">Data is processed 100% locally in your
                         browser.</span>
                 </p>
+                <div style="margin-bottom: 1rem; padding: 1.5rem; border: 2px dashed var(--accent-main); border-radius: 8px; text-align: center; cursor: pointer; background: var(--bg-surface-hover); transition: all 0.2s;"
+                    id="cv-upload-area" onclick="document.getElementById('cv-file').click()"
+                    onmouseover="this.style.background='var(--accent-light)'"
+                    onmouseout="this.style.background='var(--bg-surface-hover)'">
+                    <span id="cv-upload-text"
+                        style="color: var(--accent-main); font-weight: 600; font-size: 1.05rem;">📄 Click to upload your
+                        CV (PDF or Text File)</span>
+                    <input type="file" id="cv-file" accept=".pdf,.txt" style="display: none;"
+                        onchange="handleFileUpload(event)">
+                </div>
+                <div style="text-align: center; color: var(--text-secondary); margin-bottom: 1rem; font-size: 0.9rem;">—
+                    OR —</div>
                 <textarea id="cv-input" class="cv-textarea"
-                    placeholder="Paste your CV text here (Projects, Experience, Skills, bio)..."></textarea>
+                    placeholder="Or directly paste your CV text here..."></textarea>
                 <button class="analyze-action-btn" id="analyze-btn" onclick="analyzeCV()">Analyze & Find
                     Matches</button>
 
@@ -986,7 +999,7 @@
             };
             return names[cat] || cat;
         }
-        
+
         function isPaid(item) {
             return item.stipend.toLowerCase().includes('paid') || item.stipend.includes('₹');
         }
@@ -1003,7 +1016,7 @@
                     <h3>${item.title}</h3>
                     <div class="focus-area">${item.focus}</div>
             `;
-            
+
             if (showScore) {
                 html += `
                     <div class="match-score">
@@ -1013,7 +1026,7 @@
                     ${item.reason ? `<div style="font-size:0.85rem; color: var(--text-secondary); margin-bottom: 1rem; font-style: italic; line-height: 1.4;">" ${item.reason} "</div>` : ''}
                 `;
             }
-            
+
             html += `
                     <div class="meta-list">
                         <div class="meta-item">
@@ -1038,7 +1051,7 @@
             let finalHtml = '';
             resultsCount.textContent = `${data.length} results`;
 
-            if(data.length === 0) {
+            if (data.length === 0) {
                 grid.innerHTML = '<div class="empty-state"><h3>No internships found.</h3><p>Try adjusting your search criteria.</p></div>';
                 return;
             }
@@ -1046,7 +1059,7 @@
             data.forEach(item => {
                 finalHtml += createCardHTML(item);
             });
-            
+
             grid.innerHTML = finalHtml;
         }
 
@@ -1060,9 +1073,9 @@
 
         function filterData() {
             let filtered = internships;
-            
+
             // Category Filter
-            if(currentFilter !== 'all') {
+            if (currentFilter !== 'all') {
                 filtered = filtered.filter(i => i.category === currentFilter);
                 const btnSpan = document.querySelector(`.filter-btn[data-filter="${currentFilter}"] span:first-child`).textContent;
                 currentViewTitle.textContent = btnSpan;
@@ -1085,19 +1098,19 @@
             }
 
             // Search Filter
-            if(searchQuery) {
+            if (searchQuery) {
                 const q = searchQuery.toLowerCase();
-                filtered = filtered.filter(i => 
-                    i.title.toLowerCase().includes(q) || 
+                filtered = filtered.filter(i =>
+                    i.title.toLowerCase().includes(q) ||
                     i.focus.toLowerCase().includes(q)
                 );
             }
-            
+
             // Update Title if quick filters applied
             if (activeQuickFilters.length > 0 && currentFilter === 'all') {
                 currentViewTitle.textContent = "Filtered Results";
             }
-            
+
             render(filtered);
         }
 
@@ -1111,7 +1124,7 @@
                 filterData();
             });
         });
-        
+
         quickPills.forEach(pill => {
             pill.addEventListener('click', (e) => {
                 const q = e.target.getAttribute('data-quick');
@@ -1130,34 +1143,69 @@
             searchQuery = e.target.value;
             filterData();
         });
-        
+
         /* Modal & Analyzer Logic */
         const modal = document.getElementById('cv-modal');
         function openModal() { modal.classList.add('active'); document.body.style.overflow = 'hidden'; }
         function closeModal() { modal.classList.remove('active'); document.body.style.overflow = 'auto'; }
-        
+
         // Close modal on outside click
         modal.addEventListener('click', (e) => {
-            if(e.target === modal) closeModal();
+            if (e.target === modal) closeModal();
         });
-        
+
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
+
+        async function handleFileUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const uploadText = document.getElementById('cv-upload-text');
+            const originalText = uploadText.innerHTML;
+            uploadText.innerHTML = `⚙️ Extracting text from ${file.name}...`;
+            uploadText.style.color = 'var(--text-primary)';
+
+            try {
+                if (file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')) {
+                    const arrayBuffer = await file.arrayBuffer();
+                    const pdf = await pdfjsLib.getDocument(arrayBuffer).promise;
+                    let fullText = '';
+                    for (let i = 1; i <= pdf.numPages; i++) {
+                        const page = await pdf.getPage(i);
+                        const textContent = await page.getTextContent();
+                        fullText += textContent.items.map(item => item.str).join(' ') + '\\n';
+                    }
+                    document.getElementById('cv-input').value = fullText.trim();
+                } else {
+                    const text = await file.text();
+                    document.getElementById('cv-input').value = text;
+                }
+                uploadText.innerHTML = `✅ Successfully loaded <strong>${file.name}</strong>`;
+                uploadText.style.color = 'var(--success)';
+            } catch (err) {
+                console.error(err);
+                uploadText.innerHTML = `❌ Error reading PDF. Please paste text instead.`;
+                uploadText.style.color = 'var(--danger)';
+            }
+        }
+
         async function analyzeCV() {
             const text = document.getElementById('cv-input').value;
-            if(!text.trim()) {
-                alert("Please paste your CV text first.");
+            if (!text.trim()) {
+                alert("Please paste your CV text or upload a file first.");
                 return;
             }
-            
+
             const btn = document.getElementById('analyze-btn');
             const loader = document.getElementById('loader');
             const resultsCtr = document.getElementById('match-results-container');
             const matchGrid = document.getElementById('match-grid');
-            
+
             btn.disabled = true;
             btn.textContent = "Analyzing via DeepSeek...";
             loader.style.display = "block";
             resultsCtr.style.display = "none";
-            
+
             try {
                 const response = await fetch('/api/analyze', {
                     method: 'POST',
@@ -1167,14 +1215,16 @@
                         internships: internships
                     })
                 });
-                
+
                 if (!response.ok) {
                     const err = await response.json();
                     throw new Error(err.message || 'API Error');
                 }
-                
-                const topMatchesData = await response.json();
-                
+
+                const apiData = await response.json();
+                const topMatchesData = apiData.matches || [];
+                const feedbackData = apiData.feedback || [];
+
                 let resultsHtml = '';
                 topMatchesData.forEach(matchData => {
                     const originalItem = internships.find(i => i.id === matchData.id);
@@ -1183,9 +1233,24 @@
                         resultsHtml += createCardHTML(enhancedItem, true);
                     }
                 });
-                
-                matchGrid.innerHTML = resultsHtml;
-                
+
+                let feedbackHtml = '';
+                if (feedbackData.length > 0) {
+                    feedbackHtml = `
+                        <div style="grid-column: 1 / -1; margin-bottom: 1.5rem; background: var(--accent-light); border: 1px solid var(--accent-main); border-radius: 12px; padding: 1.5rem;">
+                            <h3 style="color: var(--accent-main); margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem; font-size: 1.1rem; border-top: none; padding-top: 0;">
+                                <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg> 
+                                Priority CV Improvements
+                            </h3>
+                            <ul style="color: var(--text-primary); padding-left: 1.5rem; line-height: 1.5; font-size: 0.95rem; font-weight: 500;">
+                                ${feedbackData.map(f => `<li style="margin-bottom: 0.5rem;">${f}</li>`).join('')}
+                            </ul>
+                        </div>
+                    `;
+                }
+
+                matchGrid.innerHTML = feedbackHtml + resultsHtml;
+
             } catch (err) {
                 console.error(err);
                 alert("Analysis pipeline failed. Check console or Vercel logs.");
